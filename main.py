@@ -1,12 +1,27 @@
 #!/usr/bin/env python3
 """
 main.py
--------
-Entry point. Currently loads config and runs a printer test.
+───────
+Entry point for Thermal Typer.
+
+Currently starts:
+  - Printer connection (lazy)
+  - CLI interface
+
+Web and WhatsApp interfaces will be added here
+as they are built.
 """
 
 import sys
+import logging
 from pathlib import Path
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(levelname)-8s  %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 
 def load_config(path: Path) -> dict:
@@ -29,27 +44,19 @@ def load_config(path: Path) -> dict:
 
 def main():
     config = load_config(Path("config.toml"))
-    print("Config loaded successfully.")
+    logger.info("Config loaded.")
 
     from typewriter.printer import Printer
-    from typewriter.dispatcher import dispatch
+    from typewriter import cli
 
-    print("Connecting to printer...")
     printer = Printer(config["printer"])
+    logger.info("Printer initialised (will connect on first use).")
 
-    print("Testing dispatcher...")
-    tests = [
-        "Hello from the dispatcher",
-        "!test",
-        "!time",
-        "!cat",
-        "cut",
-    ]
+    # Merge printer and cli config so the CLI
+    # can see both sets of settings
+    cli_config = {**config["printer"], **config["cli"]}
 
-    for t in tests:
-        print(f"  sending: {repr(t)}")
-        resp = dispatch(t, printer, config["printer"])
-        print(f"  response: {resp}")
+    cli.run(printer, cli_config)
 
 
 if __name__ == "__main__":
