@@ -137,10 +137,21 @@ def _run_live(printer, config: dict):
             # Auto-print when buffer hits line width
             if len(buf) >= width:
                 line = "".join(buf)
-                buf.clear()
-                print()  # move terminal cursor to next line
+
+                # Break at the last space for word wrapping
+                last_space = line.rfind(" ")
+                if last_space > 0:
+                    to_print = line[:last_space]
+                    leftover = line[last_space + 1:]
+                else:
+                    to_print = line
+                    leftover = ""
+
+                buf = list(leftover)
+                print()  # just move cursor to next line, no rewriting
+
                 try:
-                    printer.print_text(line)
+                    printer.print_text(to_print)
                 except Exception as e:
                     print(f"[Printer error: {e}]")
 

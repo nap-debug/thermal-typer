@@ -22,3 +22,6 @@ C:\Users\Eduardo\Documents\Projects\thermal-typer-vscode
 
 
 # TODO: ASCII cat last character '<' gets cut off in ESC/POS output
+
+## Live mode terminal display
+In live mode, the terminal display is intentionally approximate. When the buffer auto-prints at the line width, the leftover word carried to the next line is not redrawn on screen. The printer output is always correct — the terminal is just a scratch buffer. This is a known and charming cosmetic feature, not a bug.
