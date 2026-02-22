@@ -47,15 +47,16 @@ def main():
     logger.info("Config loaded.")
 
     from typewriter.printer import Printer
-    from typewriter import cli
+    from typewriter import cli, web
 
     printer = Printer(config["printer"])
     logger.info("Printer initialised (will connect on first use).")
 
-    # Merge printer and cli config so the CLI
-    # can see both sets of settings
-    cli_config = {**config["printer"], **config["cli"]}
+    # Start web UI in background thread
+    web.run(printer, config["web"])
 
+    # CLI takes over the main thread
+    cli_config = {**config["printer"], **config["cli"]}
     cli.run(printer, cli_config)
 
 
