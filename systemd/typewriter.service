@@ -1,0 +1,18 @@
+[Unit]
+Description=Thermal Typer
+After=network.target
+
+[Service]
+Type=simple
+User=eduardo
+WorkingDirectory=/home/eduardo/thermal-typer
+ExecStartPre=/bin/sleep 3
+ExecStart=/home/eduardo/thermal-typer/venv/bin/python main.py --no-cli
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=typewriter
+
+[Install]
+WantedBy=multi-user.target
