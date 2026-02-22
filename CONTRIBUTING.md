@@ -19,3 +19,6 @@ C:\Users\Eduardo\Documents\Projects\thermal-typer-vscode
 2. `cd ~/thermal-typer`
 3. `git pull`
 4. `sudo systemctl restart typewriter`
+
+
+# TODO: ASCII cat last character '<' gets cut off in ESC/POS output
