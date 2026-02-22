@@ -1,0 +1,9 @@
+# Core
+python-escpos>=3.0
+flask>=3.0
+
+# TOML support (built-in in Python 3.11+, this is the backport for older)
+tomli>=2.0; python_version < "3.11"
+
+# WhatsApp bridge (optional)
+twilio>=8.0
