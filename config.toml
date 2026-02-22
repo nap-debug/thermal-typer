@@ -1,0 +1,45 @@
+# ─────────────────────────────────────────────
+#  Thermal Typer — Configuration
+# ─────────────────────────────────────────────
+# All settings live here. No hardcoded values anywere in the codebase.
+
+[printer]
+# USB vendor/product IDs.
+# These are the Epson TM-T88V defaults.
+# Run `lsusb` on the Pi to confirm yours.
+vendor_id  = 0x04b8
+product_id = 0x0202
+
+# Printable width in characters
+chars_per_line = 37
+
+# Left margin in ESC/POS units (1 unit ≈ 0.125mm)
+margin_units = 60
+
+# Blank lines fed before a paper cut
+bottom_margin_lines = 4
+
+# Seconds between USB reconnect attempts
+reconnect_interval = 3
+
+[cli]
+# true  = each keystroke prints immediately (typewriter feel)
+# false = press Enter to print a full line
+live_mode = true
+
+[web]
+host = "0.0.0.0"
+port = 5000
+
+# Optional password to protect the web UI.
+# Leave empty to disable.
+password = ""
+
+[whatsapp]
+account_sid = ""
+auth_token  = ""
+from_number = ""
+
+# Only print messages from these numbers (E.164 format e.g. +12025551234)
+# Leave empty to accept from anyone who messages your Twilio number.
+allowed_numbers = []
