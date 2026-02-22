@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 BANNER = """
 ╔══════════════════════════════════════╗
 ║      Thermal Typer  v2.0             ║
-║  ─────────────────────────────────  ║
+║  ─────────────────────────────────   ║
 ║  type    →  prints                   ║
 ║  !name   →  shortcut                 ║
 ║  cut     →  cut paper                ║
@@ -61,63 +61,61 @@ def _getch():
 
 def _run_live(printer, config: dict):
     """
-    Live typewriter mode.
-
-    Each printable keystroke is sent to the printer immediately.
-    Enter sends a newline to the printer and checks if the
-    accumulated line was a command (exit, /line, etc).
+    Live mode — auto-prints when the line fills up.
+    No Enter needed. Silent on success.
+    Commands are detected when you press Enter on a command word.
     """
-    print("[LIVE MODE] Each keystroke prints immediately.")
-    print("Ctrl-C or type 'exit' then Enter to quit.\n")
+    print("[LIVE MODE] Prints automatically as you type.")
+    print("Press Enter after a command (exit, cut, !shortcut, /line).\n")
 
-    buf = []  # accumulates current line for command detection on Enter
+    width = config.get("chars_per_line", 37)
+    buf = []
 
     while True:
         ch = _getch()
         code = ord(ch)
 
-        # Ctrl-C or Ctrl-D — exit immediately
+        # Ctrl-C or Ctrl-D
         if code in (3, 4):
             print("\nExiting.")
             return "exit"
 
-        # Enter — check if the line was a command
+        # Enter — only used for commands
         if ch in ("\r", "\n"):
             line = "".join(buf).strip()
             buf.clear()
-            print()  # move terminal cursor down
+            print()
+
+            if not line:
+                try:
+                    printer.print_char("\n")
+                except Exception as e:
+                    print(f"[Printer error: {e}]")
+                continue
 
             if line.lower() == "/line":
                 print("[Switching to line mode]")
                 return "line"
 
-            if line.lower() in ("exit", "quit"):
+            resp = dispatch(line, printer, config)
+
+            if resp.message == "__EXIT__":
                 print("Goodbye!")
                 return "exit"
 
-            # Send newline to printer
-            # (the characters were already printed one by one)
-            try:
-                printer.print_char("\n")
-            except Exception as e:
-                print(f"[Printer error: {e}]")
+            if resp.error:
+                print(f"  {resp.message}")
             continue
 
-        # Backspace
+        # Backspace — fix screen only, no printer marker
         if code in (127, 8):
             if buf:
                 buf.pop()
-                # Erase character on screen
                 sys.stdout.write("\b \b")
                 sys.stdout.flush()
-            # Print a marker on paper — thermal can't erase
-            try:
-                printer.print_char("~")
-            except Exception:
-                pass
             continue
 
-        # Escape sequences (arrow keys etc) — skip silently
+        # Escape sequences (arrow keys etc) — skip
         if code == 27:
             fd = sys.stdin.fileno()
             old = termios.tcgetattr(fd)
@@ -130,15 +128,21 @@ def _run_live(printer, config: dict):
                 termios.tcsetattr(fd, termios.TCSADRAIN, old)
             continue
 
-        # Printable character — print to screen and printer
+        # Printable character
         if ch.isprintable():
             buf.append(ch)
             sys.stdout.write(ch)
             sys.stdout.flush()
-            try:
-                printer.print_char(ch)
-            except Exception as e:
-                print(f"\r[Printer error: {e}]")
+
+            # Auto-print when buffer hits line width
+            if len(buf) >= width:
+                line = "".join(buf)
+                buf.clear()
+                print()  # move terminal cursor to next line
+                try:
+                    printer.print_text(line)
+                except Exception as e:
+                    print(f"[Printer error: {e}]")
 
 
 # ── Line mode ─────────────────────────────────────────────────────── #
@@ -166,9 +170,10 @@ def _run_line(printer, config: dict):
             print("Goodbye!")
             return "exit"
 
-        if resp.message:
+        if resp.error:
             print(f"  {resp.message}")
-
+        elif resp.message and not resp.printed:
+            print(f"  {resp.message}")
 
 # ── Entry point ───────────────────────────────────────────────────── #
 
