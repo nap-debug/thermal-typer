@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 BANNER = """
 ╔══════════════════════════════════════╗
 ║      Thermal Typer  v2.0             ║
-║  ─────────────────────────────────   ║
+║  ─────────────────────────────────  ║
 ║  type    →  prints                   ║
 ║  !name   →  shortcut                 ║
 ║  cut     →  cut paper                ║
@@ -109,4 +109,89 @@ def _run_live(printer, config: dict):
                 buf.pop()
                 # Erase character on screen
                 sys.stdout.write("\b \b")
-                sys.stdout.fl
+                sys.stdout.flush()
+            # Print a marker on paper — thermal can't erase
+            try:
+                printer.print_char("~")
+            except Exception:
+                pass
+            continue
+
+        # Escape sequences (arrow keys etc) — skip silently
+        if code == 27:
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            try:
+                tty.setraw(fd)
+                sys.stdin.read(2)
+            except Exception:
+                pass
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+            continue
+
+        # Printable character — print to screen and printer
+        if ch.isprintable():
+            buf.append(ch)
+            sys.stdout.write(ch)
+            sys.stdout.flush()
+            try:
+                printer.print_char(ch)
+            except Exception as e:
+                print(f"\r[Printer error: {e}]")
+
+
+# ── Line mode ─────────────────────────────────────────────────────── #
+
+def _run_line(printer, config: dict):
+    """
+    Line mode — type a full line and press Enter to print.
+    """
+    print("[LINE MODE] Press Enter to print each line.")
+    print("Type '/live' to switch to live mode.\n")
+
+    while True:
+        try:
+            line = input("> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nExiting.")
+            return "exit"
+
+        if line.lower() == "/live":
+            return "live"
+
+        resp: Response = dispatch(line, printer, config)
+
+        if resp.message == "__EXIT__":
+            print("Goodbye!")
+            return "exit"
+
+        if resp.message:
+            print(f"  {resp.message}")
+
+
+# ── Entry point ───────────────────────────────────────────────────── #
+
+def run(printer, config: dict):
+    """
+    Start the CLI loop.
+    Reads live_mode from config to decide starting mode.
+    """
+    print(BANNER)
+
+    mode = "live" if config.get("live_mode", True) else "line"
+
+    while True:
+        if mode == "live":
+            result = _run_live(printer, config)
+        else:
+            result = _run_line(printer, config)
+
+        if result == "exit":
+            break
+        elif result == "live":
+            mode = "live"
+            print("[Switched to live mode]")
+        elif result == "line":
+            mode = "line"
+            print("[Switched to line mode]")
