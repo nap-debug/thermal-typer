@@ -1,63 +1,126 @@
-#!/usr/bin/env python3
+cat > typewriter/cli.py << 'ENDOFFILE'
 """
-main.py
-───────
-Entry point for Thermal Typer.
-
-Currently starts:
-  - Printer connection (lazy)
-  - CLI interface
-
-Web and WhatsApp interfaces will be added here
-as they are built.
+typewriter/cli.py
 """
-
-import sys
 import logging
-from pathlib import Path
+import sys
+import tty
+import termios
+from .dispatcher import dispatch, Response
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-8s  %(message)s",
-    datefmt="%H:%M:%S",
-)
 logger = logging.getLogger(__name__)
 
+BANNER = """
+╔══════════════════════════════════════╗
+║      Thermal Typer  v2.0             ║
+║  ─────────────────────────────────  ║
+║  type    ->  prints                  ║
+║  !name   ->  shortcut                ║
+║  cut     ->  cut paper               ║
+║  help    ->  list shortcuts          ║
+║  exit    ->  quit                    ║
+║  /live   ->  live mode (per key)     ║
+║  /line   ->  line mode (per Enter)   ║
+╚══════════════════════════════════════╝
+"""
 
-def load_config(path: Path) -> dict:
+def _getch():
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
     try:
-        import tomllib
-    except ImportError:
+        tty.setraw(fd)
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    return ch
+
+def _run_live(printer, config: dict):
+    print("[LIVE MODE] Each keystroke prints immediately.")
+    print("Ctrl-C or type 'exit' then Enter to quit.\n")
+    buf = []
+    while True:
+        ch = _getch()
+        code = ord(ch)
+        if code in (3, 4):
+            print("\nExiting.")
+            return "exit"
+        if ch in ("\r", "\n"):
+            line = "".join(buf).strip()
+            buf.clear()
+            print()
+            if line.lower() == "/line":
+                print("[Switching to line mode]")
+                return "line"
+            if line.lower() in ("exit", "quit"):
+                print("Goodbye!")
+                return "exit"
+            try:
+                printer.print_char("\n")
+            except Exception as e:
+                print(f"[Printer error: {e}]")
+            continue
+        if code in (127, 8):
+            if buf:
+                buf.pop()
+                sys.stdout.write("\b \b")
+                sys.stdout.flush()
+            try:
+                printer.print_char("~")
+            except Exception:
+                pass
+            continue
+        if code == 27:
+            fd = sys.stdin.fileno()
+            old = termios.tcgetattr(fd)
+            try:
+                tty.setraw(fd)
+                sys.stdin.read(2)
+            except Exception:
+                pass
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old)
+            continue
+        if ch.isprintable():
+            buf.append(ch)
+            sys.stdout.write(ch)
+            sys.stdout.flush()
+            try:
+                printer.print_char(ch)
+            except Exception as e:
+                print(f"\r[Printer error: {e}]")
+
+def _run_line(printer, config: dict):
+    print("[LINE MODE] Press Enter to print each line.")
+    print("Type '/live' to switch to live mode.\n")
+    while True:
         try:
-            import tomli as tomllib
-        except ImportError:
-            print("ERROR: TOML library missing. Run: pip install tomli")
-            sys.exit(1)
+            line = input("> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nExiting.")
+            return "exit"
+        if line.lower() == "/live":
+            return "live"
+        resp = dispatch(line, printer, config)
+        if resp.message == "__EXIT__":
+            print("Goodbye!")
+            return "exit"
+        if resp.message:
+            print(f"  {resp.message}")
 
-    if not path.exists():
-        print(f"ERROR: config file not found at {path}")
-        sys.exit(1)
-
-    with open(path, "rb") as f:
-        return tomllib.load(f)
-
-
-def main():
-    config = load_config(Path("config.toml"))
-    logger.info("Config loaded.")
-
-    from typewriter.printer import Printer
-    from typewriter import cli
-
-    printer = Printer(config["printer"])
-    logger.info("Printer initialised (will connect on first use).")
-
-    # Merge printer and cli config so the CLI
-    # can see both sets of settings
-    cli_config = {**config["printer"], **config["cli"]}
-
-    cli.run(printer, cli_config)
-
-
-if __name__ == "__main__":
-    main()
+def run(printer, config: dict):
+    print(BANNER)
+    mode = "live" if config.get("live_mode", True) else "line"
+    while True:
+        if mode == "live":
+            result = _run_live(printer, config)
+        else:
+            result = _run_line(printer, config)
+        if result == "exit":
+            break
+        elif result == "live":
+            mode = "live"
+            print("[Switched to live mode]")
+        elif result == "line":
+            mode = "line"
+            print("[Switched to line mode]")
+ENDOFFILE
