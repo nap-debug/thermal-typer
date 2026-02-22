@@ -2,8 +2,7 @@
 """
 main.py
 -------
-Entry point. Currently just loads and validates config.
-We'll add more here as each module is built.
+Entry point. Currently loads config and runs a printer test.
 """
 
 import sys
@@ -12,13 +11,12 @@ from pathlib import Path
 
 def load_config(path: Path) -> dict:
     try:
-        import tomllib          # Python 3.11+
+        import tomllib
     except ImportError:
         try:
-            import tomli as tomllib   # backport
+            import tomli as tomllib
         except ImportError:
-            print("ERROR: TOML library missing.")
-            print("Run: pip install tomli")
+            print("ERROR: TOML library missing. Run: pip install tomli")
             sys.exit(1)
 
     if not path.exists():
@@ -32,9 +30,21 @@ def load_config(path: Path) -> dict:
 def main():
     config = load_config(Path("config.toml"))
     print("Config loaded successfully.")
-    print(f"  Printer:  {hex(config['printer']['vendor_id'])}:{hex(config['printer']['product_id'])}")
-    print(f"  Web port: {config['web']['port']}")
-    print(f"  Live mode: {config['cli']['live_mode']}")
+
+    # ── Printer test ────────────────────────────────── #
+    from typewriter.printer import Printer
+
+    print("Connecting to printer...")
+    printer = Printer(config["printer"])
+
+    print("Sending test print...")
+    printer.print_text("Thermal Typer v2")
+    printer.print_text("Config loaded successfully.")
+    printer.print_text(f"chars_per_line: {config['printer']['chars_per_line']}")
+    printer.print_text("If you can read this, the printer is working.")
+    printer.cut()
+
+    print("Done. Check the printer!")
 
 
 if __name__ == "__main__":
