@@ -1,0 +1,16 @@
+Containerize within homelab computer instead of rpi 3. 
+Add Macros for dynamic templates
+Hook up Pico W as GPIO bridge for macro buttons
+Build notification architecture to receive info from gpio and internet events, for standalone notifications, tickers, and macros
+Build a daily newspaper by putting together info and news sources and scheduling the print time
+Build listeners that trigger print events passively: scheduled, sensor triggered, internet/api triggers
+Build history log that saves all notification to txt file for posterity
+Build daily puzzle/riddle crossword
+
+
+Essentially I want this thing to notify me of passive events and create a log for every day. I want a morning paper that I can press to print
+on demand multiple times throughout the day, and a button that prints a blank timestamped list template so I can write whatever.
+I want it hooked up to many digital ears that listen to different things, and print them outas soon as they hear it.
+I want it to cut intelligently, and I still want to be able to send custom messages to it. 
+Ideally from anywhere on the internet, but we'll start with a local connection. 
+I'd like the ability to add more printers and pick which printer to print to. 
